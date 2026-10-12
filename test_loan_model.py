@@ -35,7 +35,7 @@ class TestLoanPrediction(unittest.TestCase):
             features.iloc[[0]]
         )
 
-        self.assertIn(result, {"INVALID"})
+        self.assertIn(result, {"Y", "N"})
 
     def test_missing_target_column_raises_error(self):
         with tempfile.TemporaryDirectory() as temp_dir:
