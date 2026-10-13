@@ -14,20 +14,13 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 
-# Dataset path relative to this Python file
-DATA_PATH = (
-    Path(__file__).resolve().parent
-    / "train_u6luX_CVtuZ9i (1).csv"
-)
-
-# Output files are saved in the project folder
 PROJECT_DIR = Path(__file__).resolve().parent
+DATA_PATH = PROJECT_DIR / "loan_prediction.csv"
 MODEL_PATH = PROJECT_DIR / "loan_model.pkl"
 METRICS_PATH = PROJECT_DIR / "metrics.json"
 
 
 def load_data(data_path=DATA_PATH):
-    """Load and validate the Loan Prediction dataset."""
     df = pd.read_csv(data_path)
 
     if "Loan_Status" not in df.columns:
@@ -42,7 +35,6 @@ def load_data(data_path=DATA_PATH):
 
 
 def build_model(X):
-    """Build preprocessing and Logistic Regression pipeline."""
     numeric_columns = X.select_dtypes(
         include=["number"]
     ).columns.tolist()
@@ -66,16 +58,13 @@ def build_model(X):
         ("categorical", categorical_pipeline, categorical_columns)
     ])
 
-    model = Pipeline([
+    return Pipeline([
         ("preprocessing", preprocessing),
         ("classifier", LogisticRegression(max_iter=1000))
     ])
 
-    return model
-
 
 def train_model(data_path=DATA_PATH):
-    """Train the model using all labelled records."""
     df = load_data(data_path)
 
     X = df.drop(
@@ -91,13 +80,10 @@ def train_model(data_path=DATA_PATH):
 
 
 def predict_loan_status(model, applicant):
-    """Predict loan approval status: Y or N."""
-    prediction = model.predict(applicant)[0]
-    return str(prediction)
+    return str(model.predict(applicant)[0])
 
 
 def train_evaluate_and_save(data_path=DATA_PATH):
-    """Train, evaluate, and save the model and its metrics."""
     df = load_data(data_path)
 
     X = df.drop(
@@ -114,25 +100,17 @@ def train_evaluate_and_save(data_path=DATA_PATH):
         stratify=y
     )
 
-    print("Training model on the training split...")
-
     model = build_model(X_train)
     model.fit(X_train, y_train)
 
     predictions = model.predict(X_test)
-
     accuracy = accuracy_score(y_test, predictions)
-
     matrix = confusion_matrix(
-        y_test,
-        predictions,
-        labels=["N", "Y"]
+        y_test, predictions, labels=["N", "Y"]
     )
 
-    # Save the trained model
     joblib.dump(model, MODEL_PATH)
 
-    # Save evaluation metrics for Practical 3
     metrics = {
         "accuracy": float(accuracy),
         "training_records": int(len(X_train)),
@@ -150,26 +128,11 @@ def train_evaluate_and_save(data_path=DATA_PATH):
     print("Testing records:", len(X_test))
     print("Confusion matrix (labels N, Y):")
     print(matrix)
-
-    print("\nModel saved as:", MODEL_PATH.name)
+    print("Model saved as:", MODEL_PATH.name)
     print("Metrics saved as:", METRICS_PATH.name)
 
     return accuracy
 
 
 if __name__ == "__main__":
-    # Train and evaluate on a separate test set.
     train_evaluate_and_save()
-
-    # Demonstrate prediction using the saved model.
-    saved_model = joblib.load(MODEL_PATH)
-    df = load_data()
-
-    sample = df.drop(
-        columns=["Loan_Status", "Loan_ID"],
-        errors="ignore"
-    ).iloc[[0]]
-
-    prediction = predict_loan_status(saved_model, sample)
-
-    print("\nSample prediction:", prediction)

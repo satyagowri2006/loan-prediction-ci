@@ -1,5 +1,4 @@
 
-
 import unittest
 import tempfile
 from pathlib import Path
@@ -17,7 +16,10 @@ from loan_model import (
 class TestLoanPrediction(unittest.TestCase):
 
     def test_dataset_exists(self):
-        self.assertTrue(Path(DATA_PATH).is_file())
+        self.assertTrue(
+            Path(DATA_PATH).is_file(),
+            f"Dataset not found: {DATA_PATH}"
+        )
 
     def test_target_column_exists(self):
         df = load_data()
