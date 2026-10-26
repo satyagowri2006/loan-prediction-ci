@@ -1,3 +1,4 @@
+
 name: Loan Prediction CI-CD
 
 on:
@@ -9,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
   train-test-containerize:
@@ -99,6 +101,26 @@ jobs:
         run: |
           docker push satyagowri03/loan-prediction-api:${{ github.sha }}
           docker push satyagowri03/loan-prediction-api:latest
+
+      - name: Create GHCR image name
+        run: |
+          IMAGE_ID="ghcr.io/${GITHUB_REPOSITORY_OWNER}/loan-prediction-api"
+          IMAGE_ID=$(echo "$IMAGE_ID" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_ID=$IMAGE_ID" >> "$GITHUB_ENV"
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
+            -u "${{ github.actor }}" --password-stdin
+
+      - name: Tag and push image to GHCR
+        if: github.event_name != 'pull_request'
+        run: |
+          docker tag satyagowri03/loan-prediction-api:${{ github.sha }} "$IMAGE_ID:latest"
+          docker tag satyagowri03/loan-prediction-api:${{ github.sha }} "$IMAGE_ID:sha-${{ github.sha }}"
+          docker push "$IMAGE_ID:latest"
+          docker push "$IMAGE_ID:sha-${{ github.sha }}"
 
       - name: Upload validated ML artifacts
         uses: actions/upload-artifact@v4
