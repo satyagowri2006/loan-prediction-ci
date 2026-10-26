@@ -1,5 +1,5 @@
 
-name: Loan Prediction CI
+name: Loan Prediction CI-CD
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 jobs:
-  train-and-test:
+  train-test-containerize:
     runs-on: ubuntu-latest
 
     steps:
@@ -40,6 +40,50 @@ jobs:
 
       - name: Run prediction application tests
         run: python -m unittest test_app.py -v
+
+      - name: Build Docker image
+        run: docker build -t loan-prediction-api:${{ github.sha }} .
+
+      - name: Start Docker container
+        run: |
+          docker run -d \
+            --name loan-prediction-ci-container \
+            -p 5000:5000 \
+            loan-prediction-api:${{ github.sha }}
+
+      - name: Wait for application to become ready
+        run: |
+          for i in {1..15}; do
+            if curl --fail --silent http://localhost:5000/; then
+              echo "Application is ready."
+              exit 0
+            fi
+            echo "Waiting for application... attempt $i"
+            sleep 2
+          done
+
+          echo "Application did not become ready."
+          docker logs loan-prediction-ci-container
+          exit 1
+
+      - name: Test prediction endpoint
+        run: |
+          response=$(curl --fail --silent --show-error \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d '{"Gender":"Male","Married":"Yes","Dependents":"0","Education":"Graduate","Self_Employed":"No","ApplicantIncome":5000,"CoapplicantIncome":0,"LoanAmount":150,"Loan_Amount_Term":360,"Credit_History":1,"Property_Area":"Urban"}' \
+            http://localhost:5000/predict)
+
+          echo "Prediction response: $response"
+          echo "$response" | grep -q '"prediction"'
+
+      - name: Show Docker container logs
+        if: always()
+        run: docker logs loan-prediction-ci-container || true
+
+      - name: Stop and remove Docker container
+        if: always()
+        run: docker rm -f loan-prediction-ci-container || true
 
       - name: Upload validated ML artifacts
         uses: actions/upload-artifact@v4
